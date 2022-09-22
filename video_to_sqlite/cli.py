@@ -1,3 +1,5 @@
+import os
+
 import click
 import imageio.v3 as iio
 import re
@@ -46,12 +48,12 @@ def main(db_path, video_filename, prefix, callback=None):
     
     By default, the `frames` table contains metadata about each frame.
     To include additional columns, supply a function in the `callback`
-    agrument.
+    argument.
     
     `callback` is an optional argument for running additional
     processing on each frame of the video.
-    If supplied, the function should accept a numpy ndarray of the frame as
-    the single argument, and return a dict.
+    If supplied, the function should accept a numpy ndarray of the frame,
+    and a dict containing metadata for the given frame, and return a dict.
     Keys in the returned dict will become columns in the database, and values
     will be that column's value for the frame.
 
@@ -96,12 +98,13 @@ def parse_video(video_filename, callback=None):
             if frame['pkt_dts'] == 'N/A':
                 continue  # last frame doesn't get displayed or something?
 
-            frame['filename'] = video_filename
+            frame['filename'] = os.path.basename(video_filename)
             processed_frames.append(frame)
 
     if callback:
-        for frame, frame_metadata in zip(iio.imiter(video_filename), processed_frames):
-            frame_metadata.update(callback(frame))
+        for i, (frame, frame_metadata) in enumerate(zip(iio.imiter(video_filename), processed_frames)):
+            frame_metadata['frame_no'] = i
+            frame_metadata.update(callback(frame, frame_metadata))
 
     return metadata, processed_frames
 
@@ -121,14 +124,17 @@ def save_to_db(db, video_filename, metadata, frames, prefix):
         data,
         pk='filename',
         replace=True,
+        alter=True,
     )
 
     frame_tracker = TypeTracker()
     db[f'{prefix}frames'].insert_all(
-        frame_tracker.wrap([dict(frame, **{'frame_no': i}) for i, frame in enumerate(frames)]),
+        frame_tracker.wrap(frames),
         pk=('frame_no', 'filename'),
         foreign_keys=[
             ('filename', f'{prefix}videos', 'filename'),
         ],
-        replace=True)
+        replace=True,
+        alter=True,
+    )
     db[f'{prefix}frames'].transform(types=frame_tracker.types)
