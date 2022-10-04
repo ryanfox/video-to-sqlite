@@ -30,18 +30,22 @@ This will create tables called `cool_videos` and `cool_frames`.
 Using the library programatically allows extra columns to be added to the database via a callback. Specify the
 `callback` argument to `cli.main()`.
 
-The function will be called once per frame in the video. It should accept a numpy ndarray as the single argument, and
-return a dict. The dict's keys will be added as columns to the DB, and values will be the corresponding values for that
-row.
+The function will be called once per frame in the video. It should accept a numpy ndarray of the frame in question,
+and a dict containing metadata for the frame. The callback should return a dict. The dict's keys will be added as
+columns to the DB, and values will be the corresponding values for that row.
 
 An example:
 
 ```
 import video_to_sqlite
 
-def my_callback(frame):
+def my_callback(frame, metadata):
     has_a_cat_in_it = ai_cat_image_detector(frame)
-    return {'cat': has_a_cat_in_it}
+    
+    if metadata['pict_type'] == 'I':  # is this frame a keyframe?
+        brightness = get_average_brightness(frame)
+    
+    return {'cat': has_a_cat_in_it, 'brightness': brightness}
 
 video_to_sqlite.main('my_database.db', 'cool_video.mp4', 'cool_', my_callback)
 ```
