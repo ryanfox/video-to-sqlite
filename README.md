@@ -58,7 +58,7 @@ See `callback.py` for a working example.
 ```
 Usage: video-to-sqlite DB_PATH VIDEO_FILE PREFIX
 
-  Load data about Python packages from PyPI into SQLite
+  Load data about frames from a video into SQLite
 
   Usage example:
 
